@@ -117,6 +117,7 @@ jobs:
 
       - name: Initialize Test Database Schema & Seeds
         run: |
+          command -v mysql >/dev/null 2>&1 || (sudo apt-get update && sudo apt-get install -y default-mysql-client)
           mysql -h 127.0.0.1 -P 3306 -u root -pci_root_password_2026! mobile_security_analyzer < database/schema.sql
           mysql -h 127.0.0.1 -P 3306 -u root -pci_root_password_2026! mobile_security_analyzer < database/seed.sql
 
@@ -139,6 +140,13 @@ jobs:
         run: |
           cd backend
           node server.js &
-          sleep 5
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:5000/api/health > /dev/null; then
+              echo "Backend API is ready and responding"
+              break
+            fi
+            echo "Waiting for backend server to start..."
+            sleep 1
+          done
           npm run test:e2e
           npm run test:admin
