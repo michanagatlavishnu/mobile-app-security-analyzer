@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # 1. MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: secops_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Error: DB_ROOT_PASSWORD environment variable must be set}
+      MYSQL_DATABASE: mobile_security_analyzer
+      MYSQL_USER: ${DB_USER:-analyzer_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD environment variable must be set}
+    # Security: Database port is not exposed publicly to host; accessible only within Docker network
+    expose:
+      - "3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/user-privileges.sql:/docker-entrypoint-initdb.d/03_privileges.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - secops_network
+
+  # 2. Node.js Backend & Python Static Analysis Engine
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: secops_backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-analyzer_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Error: DB_PASSWORD environment variable must be set}
+      DB_NAME: mobile_security_analyzer
+      JWT_SECRET: ${JWT_SECRET:?Error: JWT_SECRET environment variable must be set}
+      JWT_EXPIRES_IN: 7d
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      PYTHON_PATH: /opt/venv/bin/python3
+    expose:
+      - "5000"
+    volumes:
+      - apk_storage:/app/backend/uploads
+      - scan_reports:/app/backend/reports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - secops_network
+
+  # 3. Nginx Static Frontend & Reverse Proxy
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: secops_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - secops_network
+
+volumes:
+  mysql_data:
+    driver: local
+  apk_storage:
+    driver: local
+  scan_reports:
+    driver: local
+
+networks:
+  secops_network:
+    driver: bridge

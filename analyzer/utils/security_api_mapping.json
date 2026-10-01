@@ -1,0 +1,136 @@
+{
+  "api_categories": {
+    "device_telephony": {
+      "name": "Device & Telephony Identifiers",
+      "severity": "MEDIUM",
+      "cwe": "CWE-200",
+      "owasp": "M6: Insecure Authorization",
+      "signatures": [
+        "Landroid/telephony/TelephonyManager;->getDeviceId",
+        "Landroid/telephony/TelephonyManager;->getImei",
+        "Landroid/telephony/TelephonyManager;->getMeid",
+        "Landroid/telephony/TelephonyManager;->getSubscriberId",
+        "Landroid/telephony/TelephonyManager;->getSimSerialNumber",
+        "Landroid/telephony/TelephonyManager;->getLine1Number",
+        "TelephonyManager;->getDeviceId",
+        "TelephonyManager;->getImei",
+        "android.telephony.TelephonyManager.getDeviceId",
+        "android.telephony.TelephonyManager.getImei",
+        "getDeviceId",
+        "getImei"
+      ]
+    },
+    "sms_messaging": {
+      "name": "Telephony SMS Messaging",
+      "severity": "HIGH",
+      "cwe": "CWE-284",
+      "owasp": "M1: Improper Platform Usage",
+      "signatures": [
+        "Landroid/telephony/SmsManager;->sendTextMessage",
+        "Landroid/telephony/SmsManager;->sendMultipartTextMessage",
+        "Landroid/telephony/SmsManager;->sendDataMessage",
+        "SmsManager;->sendTextMessage",
+        "android.telephony.SmsManager.sendTextMessage"
+      ]
+    },
+    "location_tracking": {
+      "name": "Geolocation & Movement Tracking",
+      "severity": "MEDIUM",
+      "cwe": "CWE-359",
+      "owasp": "M6: Insecure Authorization",
+      "signatures": [
+        "Landroid/location/LocationManager;->getLastKnownLocation",
+        "Landroid/location/LocationManager;->requestLocationUpdates",
+        "LocationManager;->getLastKnownLocation",
+        "com/google/android/gms/location/FusedLocationProviderClient",
+        "android.location.LocationManager.getLastKnownLocation"
+      ]
+    },
+    "audio_video_recording": {
+      "name": "Audio & Camera Recording",
+      "severity": "MEDIUM",
+      "cwe": "CWE-359",
+      "owasp": "M6: Insecure Authorization",
+      "signatures": [
+        "Landroid/media/AudioRecord;->startRecording",
+        "Landroid/media/MediaRecorder;->start",
+        "Landroid/hardware/Camera;->open",
+        "Landroid/hardware/camera2/CameraManager;->openCamera"
+      ]
+    },
+    "clipboard_monitoring": {
+      "name": "System Clipboard Inspection",
+      "severity": "LOW",
+      "cwe": "CWE-200",
+      "owasp": "M6: Insecure Authorization",
+      "signatures": [
+        "Landroid/content/ClipboardManager;->getPrimaryClip",
+        "Landroid/content/ClipboardManager;->getText",
+        "android.content.ClipboardManager.getPrimaryClip"
+      ]
+    },
+    "dynamic_code_loading": {
+      "name": "Dynamic Bytecode Loading",
+      "severity": "HIGH",
+      "cwe": "CWE-470",
+      "owasp": "M7: Client Code Quality",
+      "signatures": [
+        "Ldalvik/system/DexClassLoader;",
+        "Ldalvik/system/InMemoryDexClassLoader;",
+        "Ldalvik/system/PathClassLoader;",
+        "dalvik.system.DexClassLoader"
+      ]
+    },
+    "root_detection_evasion": {
+      "name": "Root Privilege Execution & Detection",
+      "severity": "MEDIUM",
+      "cwe": "CWE-250",
+      "owasp": "M7: Insufficient Binary Protections",
+      "signatures": [
+        "/system/bin/su",
+        "/system/xbin/su",
+        "which su",
+        "com.topjohnwu.magisk"
+      ]
+    },
+    "insecure_prng": {
+      "name": "Insecure Pseudo-Random Number Generation",
+      "severity": "MEDIUM",
+      "cwe": "CWE-330",
+      "owasp": "M5: Insufficient Cryptography",
+      "signatures": [
+        "Ljava/util/Random;",
+        "java/util/Random;->nextInt",
+        "java/util/Random;->nextBytes",
+        "java.util.Random"
+      ]
+    },
+    "tls_trust_bypass": {
+      "name": "Permissive TLS / Certificate Trust Bypass",
+      "severity": "CRITICAL",
+      "cwe": "CWE-295",
+      "owasp": "M5: Insecure Communication",
+      "signatures": [
+        "ALLOW_ALL_HOSTNAME_VERIFIER",
+        "AllowAllHostnameVerifier",
+        "NullHostnameVerifier",
+        "TrustAllCerts",
+        "TrustAllTrustManager",
+        "checkServerTrusted"
+      ]
+    },
+    "network_sinks": {
+      "name": "Network Transmission Sinks",
+      "severity": "INFORMATIONAL",
+      "cwe": "CWE-319",
+      "owasp": "M5: Insecure Communication",
+      "signatures": [
+        "Ljava/net/HttpURLConnection;->connect",
+        "Lokhttp3/OkHttpClient;",
+        "Lretrofit2/Retrofit;",
+        "Lcom/android/volley/RequestQueue;",
+        "java.net.URL.openConnection"
+      ]
+    }
+  }
+}

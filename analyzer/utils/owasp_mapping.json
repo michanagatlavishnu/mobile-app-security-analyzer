@@ -1,0 +1,42 @@
+{
+  "M1": {
+    "name": "Improper Credential Usage",
+    "description": "Hardcoded API tokens, keys, passwords, or credentials directly in binary or source code."
+  },
+  "M2": {
+    "name": "Inadequate Supply Chain Security",
+    "description": "Vulnerable third-party libraries, compromised build pipelines, or untrusted dependencies."
+  },
+  "M3": {
+    "name": "Insecure Authentication/Authorization",
+    "description": "Missing endpoint authorization, vulnerable exported components, or bypassable authentication schemes."
+  },
+  "M4": {
+    "name": "Insufficient Input/Output Validation",
+    "description": "Unsanitized intent handling, SQL injection, path traversal, or command injection."
+  },
+  "M5": {
+    "name": "Insecure Communication",
+    "description": "Cleartext HTTP traffic, lack of TLS verification, or missing network security configuration."
+  },
+  "M6": {
+    "name": "Inadequate Privacy Controls",
+    "description": "Excessive or dangerous permissions, sensitive telemetry harvesting, or background surveillance."
+  },
+  "M7": {
+    "name": "Insufficient Binary Protections",
+    "description": "Debuggable release builds, absence of code obfuscation, or tampering vulnerabilities."
+  },
+  "M8": {
+    "name": "Security Misconfiguration",
+    "description": "Enabled backups (allowBackup=true), default credentials, or exported activities without permission controls."
+  },
+  "M9": {
+    "name": "Insecure Data Storage",
+    "description": "Unencrypted local SQLite databases, world-readable shared preferences, or external storage exposure."
+  },
+  "M10": {
+    "name": "Insufficient Cryptography",
+    "description": "Deprecated cryptographic algorithms, hardcoded IVs, or weak pseudorandom number generators."
+  }
+}

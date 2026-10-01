@@ -1,0 +1,4 @@
+# Core Analyzer Dependencies
+# Uses Python standard libraries (zipfile, hashlib, json, struct, os, sys, argparse)
+# Optional crypto support for APK signature parsing in future phases:
+cryptography>=42.0.0
