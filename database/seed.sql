@@ -23,7 +23,21 @@ VALUES (
 )
 ON DUPLICATE KEY UPDATE `role` = 'admin', `status` = 'active';
 
--- 2. Initial System Audit Log Entry
+-- 2. Development QA Analyst Account (For local & CI E2E regression testing)
+-- Email: lead.analyst@security.org
+-- Role: user
+INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `status`)
+VALUES (
+  2,
+  'Lead Security Analyst',
+  'lead.analyst@security.org',
+  '$2b$10$Pkho1NXSqG70/mJh04Vdf.6mBtknM5UduCdFBhAnA2AtITEejExYq',
+  'user',
+  'active'
+)
+ON DUPLICATE KEY UPDATE `role` = 'user', `status` = 'active';
+
+-- 3. Initial System Audit Log Entry
 INSERT INTO `audit_logs` (`user_id`, `action`, `ip_address`)
 VALUES (
   1,
