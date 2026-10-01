@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   UploadCloud,
   ShieldAlert,
@@ -35,6 +35,8 @@ import scanService from '../services/scanService';
 import { getRiskScoreColor, getSeverityColor, formatDate } from '../utils/formatters';
 
 export default function DashboardPage() {
+  const location = useLocation();
+  const [deniedNotice, setDeniedNotice] = useState(location.state?.accessDenied || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dashboardData, setDashboardData] = useState(null);
@@ -90,6 +92,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {deniedNotice && (
+        <div className="p-4 bg-red-950/40 border border-red-500/40 rounded-xl flex items-center justify-between text-xs text-red-300 font-mono shadow-lg">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-5 w-5 text-red-400 shrink-0" />
+            <span>{deniedNotice}</span>
+          </div>
+          <button
+            onClick={() => setDeniedNotice('')}
+            className="text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-red-900/40 transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <PageHeader
         title="Security Operations Dashboard"
         description="Unified security posture, vulnerability distributions, score trajectories, and audit telemetry."

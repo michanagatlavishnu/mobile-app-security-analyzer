@@ -184,7 +184,7 @@ class Scan {
 
     // Scans stats
     const scansSql = `
-      SELECT 
+      SELECT
         COUNT(*) AS total_scans,
         COUNT(CASE WHEN s.status = 'completed' THEN 1 END) AS completed_scans,
         COUNT(CASE WHEN s.status = 'failed' THEN 1 END) AS failed_scans,
@@ -196,7 +196,7 @@ class Scan {
 
     // Finding stats
     const vulnSql = `
-      SELECT 
+      SELECT
         COUNT(CASE WHEN v.severity = 'CRITICAL' THEN 1 END) AS critical_vulns,
         COUNT(CASE WHEN v.severity = 'HIGH' THEN 1 END) AS high_vulns,
         COUNT(CASE WHEN v.severity = 'MEDIUM' THEN 1 END) AS medium_vulns,
@@ -268,6 +268,166 @@ class Scan {
     const params = isAdmin ? [] : [userId];
     const [rows] = await query(sql, params);
     return rows;
+  }
+
+  /**
+   * Platform-wide paginated scans query for Admin Portal
+   */
+  static async getAdminScansPaginated({
+    page = 1,
+    limit = 20,
+    status = '',
+    riskLevel = '',
+    user = '',
+    application = '',
+    search = '',
+    startDate = '',
+    endDate = '',
+    sortBy = 'created_at',
+    sortOrder = 'DESC',
+  }) {
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const offset = (pageNum - 1) * limitNum;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (status && status.trim().length > 0 && status.trim() !== 'all') {
+      whereClauses.push('s.status = ?');
+      params.push(status.trim().toLowerCase());
+    }
+
+    if (riskLevel && riskLevel.trim().length > 0 && riskLevel.trim() !== 'all') {
+      whereClauses.push('s.risk_level = ?');
+      params.push(riskLevel.trim().toUpperCase());
+    }
+
+    if (user && user.trim().length > 0) {
+      const trimmed = user.trim();
+      whereClauses.push('(u.name LIKE ? OR u.email LIKE ?)');
+      params.push(`%${trimmed}%`, `%${trimmed}%`);
+    }
+
+    if (application && application.trim().length > 0) {
+      const trimmed = application.trim();
+      whereClauses.push('(a.package_name LIKE ? OR a.original_filename LIKE ?)');
+      params.push(`%${trimmed}%`, `%${trimmed}%`);
+    }
+
+    if (search && search.trim().length > 0) {
+      const term = `%${search.trim()}%`;
+      whereClauses.push('(a.package_name LIKE ? OR a.original_filename LIKE ? OR u.name LIKE ? OR u.email LIKE ?)');
+      params.push(term, term, term, term);
+    }
+
+    if (startDate && startDate.trim().length > 0) {
+      whereClauses.push('s.created_at >= ?');
+      params.push(`${startDate.trim()} 00:00:00`);
+    }
+
+    if (endDate && endDate.trim().length > 0) {
+      whereClauses.push('s.created_at <= ?');
+      params.push(`${endDate.trim()} 23:59:59`);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const allowedSort = {
+      id: 's.id',
+      created_at: 's.created_at',
+      date: 's.created_at',
+      security_score: 's.security_score',
+      risk_level: 's.risk_level',
+      status: 's.status',
+      user: 'u.name',
+      application: 'a.original_filename',
+      package_name: 'a.package_name',
+    };
+
+    const sortCol = allowedSort[sortBy] || 's.created_at';
+    const sortDir = (sortOrder || '').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM scans s
+      JOIN apk_files a ON s.apk_id = a.id
+      JOIN users u ON s.user_id = u.id
+      ${whereSql}
+    `;
+    const [countRows] = await query(countSql, params);
+    const total = Number(countRows[0]?.total || 0);
+
+    const dataSql = `
+      SELECT
+        s.id,
+        s.user_id,
+        s.apk_id,
+        s.status,
+        s.progress,
+        s.security_score,
+        s.risk_level,
+        s.started_at,
+        s.completed_at,
+        s.created_at,
+        u.name AS user_name,
+        u.email AS user_email,
+        u.role AS user_role,
+        a.original_filename,
+        a.package_name,
+        a.version_name,
+        a.version_code,
+        a.file_size,
+        (SELECT COUNT(*) FROM vulnerabilities v WHERE v.scan_id = s.id AND v.severity = 'CRITICAL') AS critical_count,
+        (SELECT COUNT(*) FROM vulnerabilities v WHERE v.scan_id = s.id AND v.severity = 'HIGH') AS high_count,
+        (SELECT COUNT(*) FROM vulnerabilities v WHERE v.scan_id = s.id AND v.severity = 'MEDIUM') AS medium_count,
+        (SELECT COUNT(*) FROM vulnerabilities v WHERE v.scan_id = s.id AND v.severity = 'LOW') AS low_count,
+        (SELECT COUNT(*) FROM vulnerabilities v WHERE v.scan_id = s.id) AS vulnerability_count
+      FROM scans s
+      JOIN apk_files a ON s.apk_id = a.id
+      JOIN users u ON s.user_id = u.id
+      ${whereSql}
+      ORDER BY ${sortCol} ${sortDir}
+      LIMIT ? OFFSET ?
+    `;
+
+    const [rows] = await query(dataSql, [...params, limitNum, offset]);
+
+    return {
+      scans: rows.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.user_name,
+        userEmail: r.user_email,
+        userRole: r.user_role,
+        apkId: r.apk_id,
+        originalFilename: r.original_filename,
+        packageName: r.package_name,
+        versionName: r.version_name,
+        versionCode: r.version_code,
+        fileSize: r.file_size,
+        status: r.status,
+        progress: r.progress,
+        securityScore: r.security_score,
+        riskLevel: r.risk_level,
+        startedAt: r.started_at,
+        completedAt: r.completed_at,
+        createdAt: r.created_at,
+        vulnerabilities: {
+          critical: Number(r.critical_count || 0),
+          high: Number(r.high_count || 0),
+          medium: Number(r.medium_count || 0),
+          low: Number(r.low_count || 0),
+          total: Number(r.vulnerability_count || 0),
+        },
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
+    };
   }
 }
 

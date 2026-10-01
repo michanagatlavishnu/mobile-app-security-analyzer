@@ -12,6 +12,11 @@ import {
   X,
   Shield,
   ExternalLink,
+  Users,
+  Layers,
+  Activity,
+  AlertOctagon,
+  Server,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/Button';
@@ -36,7 +41,13 @@ export default function DashboardLayout() {
   ];
 
   const adminItems = [
-    { label: 'Admin Dashboard', path: '/admin', icon: ShieldCheck },
+    { label: 'Overview', path: '/admin', icon: ShieldCheck },
+    { label: 'Users', path: '/admin/users', icon: Users },
+    { label: 'Applications', path: '/admin/applications', icon: Layers },
+    { label: 'Scans', path: '/admin/scans', icon: Activity },
+    { label: 'Findings', path: '/admin/findings', icon: AlertOctagon },
+    { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileText },
+    { label: 'System Health', path: '/admin/system', icon: Server },
   ];
 
   return (

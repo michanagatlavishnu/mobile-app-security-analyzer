@@ -21,9 +21,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   `status` ENUM('active', 'disabled') NOT NULL DEFAULT 'active',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_login` TIMESTAMP NULL DEFAULT NULL,
   INDEX `idx_users_email` (`email`),
   INDEX `idx_users_role` (`role`),
-  INDEX `idx_users_status` (`status`)
+  INDEX `idx_users_status` (`status`),
+  INDEX `idx_users_created_at` (`created_at`),
+  INDEX `idx_users_last_login` (`last_login`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. APK Files Table
@@ -41,6 +44,8 @@ CREATE TABLE IF NOT EXISTS `apk_files` (
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX `idx_apk_user_id` (`user_id`),
   INDEX `idx_apk_sha256` (`sha256`),
+  INDEX `idx_apk_package_name` (`package_name`),
+  INDEX `idx_apk_created_at` (`created_at`),
   CONSTRAINT `fk_apk_files_user`
     FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
     ON DELETE CASCADE
@@ -99,6 +104,7 @@ CREATE TABLE IF NOT EXISTS `vulnerabilities` (
   INDEX `idx_vuln_severity` (`severity`),
   INDEX `idx_vuln_category` (`category`),
   INDEX `idx_vuln_status` (`status`),
+  INDEX `idx_vuln_created_at` (`created_at`),
   CONSTRAINT `fk_vuln_scan`
     FOREIGN KEY (`scan_id`) REFERENCES `scans` (`id`)
     ON DELETE CASCADE

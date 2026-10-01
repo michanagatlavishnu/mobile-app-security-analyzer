@@ -1,5 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Users, Activity, AlertOctagon, RefreshCw, UserCheck, UserX, Shield, Database, HardDrive, FileText, CheckCircle2, Clock } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  ShieldCheck,
+  Users,
+  UserCheck,
+  UserX,
+  Shield,
+  UploadCloud,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  AlertOctagon,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  Calendar,
+  Clock,
+  TrendingUp,
+  RefreshCw,
+  HardDrive,
+  ArrowRight,
+  UserMinus,
+  Sparkles,
+  BarChart3,
+  Layers,
+  FileText,
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  CartesianGrid,
+} from 'recharts';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
@@ -10,262 +48,529 @@ import adminService from '../services/adminService';
 import { formatDate } from '../utils/formatters';
 
 export default function AdminPage() {
-  const [metrics, setMetrics] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [regAnalytics, setRegAnalytics] = useState(null);
+  const [activityAnalytics, setActivityAnalytics] = useState(null);
+  const [activeTab, setActiveTab] = useState('daily'); // 'daily' | 'weekly' | 'monthly'
 
-  const fetchAdminData = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError('');
-      const [metricsData, usersData, logsData] = await Promise.all([
-        adminService.getMetrics(),
-        adminService.getAllUsers(),
-        adminService.getAuditLogs(pagination.page, pagination.limit)
+      const [dashRes, regRes, actRes] = await Promise.all([
+        adminService.getDashboard(),
+        adminService.getRegistrationAnalytics(),
+        adminService.getActivityAnalytics(),
       ]);
-      setMetrics(metricsData.data);
-      setUsers(usersData.data || []);
-      setAuditLogs(logsData.data?.logs || []);
-      if (logsData.data?.pagination) {
-        setPagination(logsData.data.pagination);
-      }
+
+      setDashboardData(dashRes);
+      setRegAnalytics(regRes);
+      setActivityAnalytics(actRes);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load administrator data.');
+      setError(err.response?.data?.message || 'Failed to retrieve administrative overview metrics.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAdminData();
-  }, [pagination.page]);
+    fetchDashboardData();
+  }, []);
 
-  const handleRoleToggle = async (userId, currentRole) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    try {
-      setActionLoading(`role-${userId}`);
-      await adminService.updateUserRole(userId, newRole);
-      setMessage(`Successfully updated user role to ${newRole}`);
-      setTimeout(() => setMessage(''), 3000);
-      fetchAdminData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update user role.');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleStatusToggle = async (userId, currentStatus) => {
-    const newStatus = currentStatus === 'active' ? 'disabled' : 'active';
-    try {
-      setActionLoading(`status-${userId}`);
-      await adminService.updateUserStatus(userId, newStatus);
-      setMessage(`Successfully changed user status to ${newStatus}`);
-      setTimeout(() => setMessage(''), 3000);
-      fetchAdminData();
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update user status.');
-    } finally {
-      setActionLoading(null);
-    }
-  };
+  const cards = dashboardData?.cards || {};
+  const regStats = dashboardData?.registrationStats || {};
+  const usageStats = dashboardData?.usageStats || {};
+  const activityFeeds = dashboardData?.platformActivity || {};
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Security Operations & Administration"
-        description="Global system telemetry, user governance, access control, and immutable audit logs."
+        title="Admin Security Operations Overview"
+        description="Global platform telemetry, user governance metrics, vulnerability posture, and audit logs."
         badge={<Badge label="SecOps Admin Active" variant="danger" />}
         actions={
-          <Button variant="outline" size="sm" onClick={fetchAdminData}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={fetchDashboardData} disabled={loading}>
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+            </Button>
+            <Link to="/admin/users">
+              <Button variant="primary" size="sm">
+                <Users className="h-3.5 w-3.5 mr-1.5" /> Manage Users
+              </Button>
+            </Link>
+          </div>
         }
       />
 
-      {message && (
-        <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-lg flex items-center gap-2 text-xs text-emerald-400 font-mono">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          <span>{message}</span>
-        </div>
-      )}
+      {loading && <LoadingSpinner message="Querying administrative metrics and analytics from database..." />}
 
-      {loading && <LoadingSpinner message="Fetching administrative metrics and telemetry from MySQL..." />}
-
-      {error && <ErrorState title="Admin Access Notice" message={error} onRetry={fetchAdminData} />}
+      {error && <ErrorState title="Telemetry Error" message={error} onRetry={fetchDashboardData} />}
 
       {!loading && !error && (
         <>
-          {/* Top KPI Telemetry Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="border-slate-800">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-mono text-slate-400 uppercase">Registered Users</p>
-                <Users className="h-4 w-4 text-cyan-400" />
+          {/* Section: 14 Required KPI Metrics Cards */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold">
+                Platform Telemetry & Metrics
+              </p>
+              <span className="text-[11px] font-mono text-cyan-400">14 Core Operational Signals</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+              {/* Card 1: Total Users */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Total Users</span>
+                  <Users className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+                <p className="text-2xl font-black text-white font-mono mt-1">{cards.totalUsers ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Registered accounts</p>
+              </Card>
+
+              {/* Card 2: Active Users */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Active Users</span>
+                  <UserCheck className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+                <p className="text-2xl font-black text-emerald-400 font-mono mt-1">{cards.activeUsers ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Enabled status</p>
+              </Card>
+
+              {/* Card 3: Disabled Users */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Disabled Users</span>
+                  <UserX className="h-3.5 w-3.5 text-red-400" />
+                </div>
+                <p className="text-2xl font-black text-red-400 font-mono mt-1">{cards.disabledUsers ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Locked accounts</p>
+              </Card>
+
+              {/* Card 4: Admin Users */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Admin Users</span>
+                  <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                </div>
+                <p className="text-2xl font-black text-purple-400 font-mono mt-1">{cards.adminUsers ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">SecOps administrators</p>
+              </Card>
+
+              {/* Card 5: Analyst Users */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Analyst Users</span>
+                  <Shield className="h-3.5 w-3.5 text-sky-400" />
+                </div>
+                <p className="text-2xl font-black text-sky-400 font-mono mt-1">{cards.analystUsers ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Security analysts</p>
+              </Card>
+
+              {/* Card 6: Total APKs Uploaded */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Total APKs</span>
+                  <UploadCloud className="h-3.5 w-3.5 text-indigo-400" />
+                </div>
+                <p className="text-2xl font-black text-white font-mono mt-1">{cards.totalApks ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">{cards.storageMb ?? 0} MB stored</p>
+              </Card>
+
+              {/* Card 7: Total Scans */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Total Scans</span>
+                  <Activity className="h-3.5 w-3.5 text-cyan-400" />
+                </div>
+                <p className="text-2xl font-black text-cyan-400 font-mono mt-1">{cards.totalScans ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Executed analyses</p>
+              </Card>
+
+              {/* Card 8: Completed Scans */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Completed Scans</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+                <p className="text-2xl font-black text-emerald-400 font-mono mt-1">{cards.completedScans ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Fully analyzed</p>
+              </Card>
+
+              {/* Card 9: Failed Scans */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Failed Scans</span>
+                  <XCircle className="h-3.5 w-3.5 text-red-400" />
+                </div>
+                <p className="text-2xl font-black text-red-400 font-mono mt-1">{cards.failedScans ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Errored analyses</p>
+              </Card>
+
+              {/* Card 10: Total Vulnerabilities */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Total Findings</span>
+                  <AlertOctagon className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+                <p className="text-2xl font-black text-amber-400 font-mono mt-1">{cards.totalVulnerabilities ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">Across all scans</p>
+              </Card>
+
+              {/* Card 11: Critical Findings */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Critical</span>
+                  <AlertOctagon className="h-3.5 w-3.5 text-red-500" />
+                </div>
+                <p className="text-2xl font-black text-red-500 font-mono mt-1">{cards.criticalFindings ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">CVSS Critical</p>
+              </Card>
+
+              {/* Card 12: High Findings */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">High</span>
+                  <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
+                </div>
+                <p className="text-2xl font-black text-orange-400 font-mono mt-1">{cards.highFindings ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">CVSS High</p>
+              </Card>
+
+              {/* Card 13: Medium Findings */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Medium</span>
+                  <AlertCircle className="h-3.5 w-3.5 text-amber-400" />
+                </div>
+                <p className="text-2xl font-black text-amber-400 font-mono mt-1">{cards.mediumFindings ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">CVSS Medium</p>
+              </Card>
+
+              {/* Card 14: Low Findings */}
+              <Card className="border-slate-800 p-3 hover:border-slate-700 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-slate-400">Low</span>
+                  <Info className="h-3.5 w-3.5 text-blue-400" />
+                </div>
+                <p className="text-2xl font-black text-blue-400 font-mono mt-1">{cards.lowFindings ?? 0}</p>
+                <p className="text-[10px] text-slate-500 font-mono mt-0.5">CVSS Low</p>
+              </Card>
+            </div>
+          </div>
+
+          {/* Section: Registration & Usage Statistics Aggregates */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Registration Statistics Card */}
+            <Card title="Registration Velocity" subtitle="User account growth calculated across active intervals">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-1">
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">Today</p>
+                  <p className="text-xl font-bold font-mono text-cyan-400 mt-1">{regStats.today ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">This Week</p>
+                  <p className="text-xl font-bold font-mono text-sky-400 mt-1">{regStats.thisWeek ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">This Month</p>
+                  <p className="text-xl font-bold font-mono text-indigo-400 mt-1">{regStats.thisMonth ?? 0}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-center">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">Last 30 Days</p>
+                  <p className="text-xl font-bold font-mono text-purple-400 mt-1">{regStats.last30Days ?? 0}</p>
+                </div>
               </div>
-              <p className="text-3xl font-extrabold text-white mt-2 font-mono">{metrics?.users?.total ?? 0}</p>
-              <p className="text-[11px] text-slate-500 font-mono mt-1">Tenant isolated accounts</p>
             </Card>
 
-            <Card className="border-slate-800">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-mono text-slate-400 uppercase">Total Scans Executed</p>
-                <Activity className="h-4 w-4 text-sky-400" />
+            {/* Usage Statistics Card */}
+            <Card title="Platform Engagement" subtitle="Real database-tracked analyst utilization metrics">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1">
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">Uploaded APKs</p>
+                  <p className="text-xl font-bold font-mono text-emerald-400 mt-1">{usageStats.usersWithApkUploads ?? 0}</p>
+                  <p className="text-[9px] text-slate-500 font-mono mt-0.5">Users who uploaded</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">Completed Scans</p>
+                  <p className="text-xl font-bold font-mono text-cyan-400 mt-1">{usageStats.usersWithCompletedScans ?? 0}</p>
+                  <p className="text-[9px] text-slate-500 font-mono mt-0.5">Users who scanned</p>
+                </div>
+                <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 col-span-2 sm:col-span-1">
+                  <p className="text-[10px] font-mono uppercase text-slate-400">Scans Today</p>
+                  <p className="text-xl font-bold font-mono text-amber-400 mt-1">{usageStats.scansToday ?? 0}</p>
+                  <p className="text-[9px] text-slate-500 font-mono mt-0.5">{usageStats.scansThisWeek ?? 0} this week</p>
+                </div>
               </div>
-              <p className="text-3xl font-extrabold text-white mt-2 font-mono">{metrics?.scans?.total ?? 0}</p>
-              <div className="flex gap-2 text-[10px] font-mono mt-1 text-slate-400">
-                <span className="text-emerald-400">{metrics?.scans?.completed ?? 0} Completed</span>
-                <span>•</span>
-                <span className="text-amber-400">{metrics?.scans?.active ?? 0} Active</span>
-              </div>
-            </Card>
-
-            <Card className="border-slate-800">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-mono text-slate-400 uppercase">Security Findings</p>
-                <AlertOctagon className="h-4 w-4 text-amber-400" />
-              </div>
-              <p className="text-3xl font-extrabold text-white mt-2 font-mono">{metrics?.vulnerabilities?.total ?? 0}</p>
-              <div className="flex gap-2 text-[10px] font-mono mt-1">
-                <span className="text-red-400">{metrics?.vulnerabilities?.critical ?? 0} Critical</span>
-                <span>•</span>
-                <span className="text-emerald-400">{metrics?.vulnerabilities?.resolved ?? 0} Resolved</span>
-              </div>
-            </Card>
-
-            <Card className="border-slate-800">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-mono text-slate-400 uppercase">Secure APK Storage</p>
-                <HardDrive className="h-4 w-4 text-emerald-400" />
-              </div>
-              <p className="text-3xl font-extrabold text-white mt-2 font-mono">{metrics?.apks?.totalMb ?? 0} <span className="text-sm font-normal text-slate-400">MB</span></p>
-              <p className="text-[11px] text-slate-500 font-mono mt-1">{metrics?.apks?.total ?? 0} Encrypted Archive(s)</p>
             </Card>
           </div>
 
-          {/* User Governance Table */}
-          <Card title="User Access Governance" subtitle="Manage operator roles and account activation states">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
-                    <th className="py-2.5 px-3">User</th>
-                    <th className="py-2.5 px-3">Email</th>
-                    <th className="py-2.5 px-3">Role</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-center">APKs</th>
-                    <th className="py-2.5 px-3 text-center">Scans</th>
-                    <th className="py-2.5 px-3">Registered</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-900/50 transition-colors">
-                      <td className="py-2.5 px-3 font-semibold text-slate-200">{u.name}</td>
-                      <td className="py-2.5 px-3 text-slate-400">{u.email}</td>
-                      <td className="py-2.5 px-3">
-                        <Badge label={u.role.toUpperCase()} variant={u.role === 'admin' ? 'danger' : 'info'} size="sm" />
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`inline-flex items-center gap-1 text-[11px] ${u.status === 'active' ? 'text-emerald-400' : 'text-red-400'}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                          {u.status}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-center text-slate-300">{u.total_apks}</td>
-                      <td className="py-2.5 px-3 text-center text-slate-300">{u.total_scans}</td>
-                      <td className="py-2.5 px-3 text-slate-500 text-[11px]">{formatDate(u.created_at)}</td>
-                      <td className="py-2.5 px-3 text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          loading={actionLoading === `role-${u.id}`}
-                          onClick={() => handleRoleToggle(u.id, u.role)}
-                          title="Toggle Admin / User Role"
-                        >
-                          <Shield className="h-3 w-3 mr-1" />
-                          {u.role === 'admin' ? 'Demote' : 'Promote'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          loading={actionLoading === `status-${u.id}`}
-                          onClick={() => handleStatusToggle(u.id, u.status)}
-                          className={u.status === 'active' ? 'text-red-400 hover:text-red-300' : 'text-emerald-400 hover:text-emerald-300'}
-                          title="Toggle Account Activation"
-                        >
-                          {u.status === 'active' ? <UserX className="h-3 w-3 mr-1" /> : <UserCheck className="h-3 w-3 mr-1" />}
-                          {u.status === 'active' ? 'Disable' : 'Enable'}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Section: Registration Growth Charts (Phase 8) */}
+          <Card
+            title="User Registration Trends"
+            subtitle="Verified historical onboarding trajectory from database records"
+            actions={
+              <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-lg">
+                <button
+                  onClick={() => setActiveTab('daily')}
+                  className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                    activeTab === 'daily' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Daily (30d)
+                </button>
+                <button
+                  onClick={() => setActiveTab('weekly')}
+                  className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                    activeTab === 'weekly' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Weekly (12w)
+                </button>
+                <button
+                  onClick={() => setActiveTab('monthly')}
+                  className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                    activeTab === 'monthly' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Monthly (12m)
+                </button>
+              </div>
+            }
+          >
+            <div className="h-64 w-full mt-2">
+              {activeTab === 'daily' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={regAnalytics?.daily || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="regGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="date" stroke="#64748b" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
+                    <YAxis stroke="#64748b" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px', fontFamily: 'monospace' }}
+                      labelStyle={{ color: '#06b6d4' }}
+                    />
+                    <Area type="monotone" dataKey="count" name="New Users" stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#regGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+
+              {activeTab === 'weekly' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={regAnalytics?.weekly || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="label" stroke="#64748b" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#64748b" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px', fontFamily: 'monospace' }}
+                      labelStyle={{ color: '#38bdf8' }}
+                    />
+                    <Bar dataKey="count" name="Registrations" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+              {activeTab === 'monthly' && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={regAnalytics?.monthly || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="month" stroke="#64748b" tick={{ fontSize: 10 }} />
+                    <YAxis stroke="#64748b" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px', fontFamily: 'monospace' }}
+                      labelStyle={{ color: '#818cf8' }}
+                    />
+                    <Bar dataKey="count" name="Registrations" fill="#818cf8" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
-          {/* System Audit Logs */}
-          <Card
-            title="System Security Audit Trail"
-            subtitle="Immutable operational event log across all users and analysis actions"
-          >
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase text-[10px]">
-                    <th className="py-2.5 px-3">Timestamp</th>
-                    <th className="py-2.5 px-3">Operator</th>
-                    <th className="py-2.5 px-3">Action</th>
-                    <th className="py-2.5 px-3">Entity</th>
-                    <th className="py-2.5 px-3">Details</th>
-                    <th className="py-2.5 px-3">IP Address</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {auditLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-900/50 transition-colors">
-                      <td className="py-2.5 px-3 text-slate-400 text-[11px] whitespace-nowrap">
-                        {formatDate(log.created_at)}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-300">
-                        {log.user_name ? (
-                          <span>{log.user_name} <span className="text-[10px] text-slate-500">({log.user_role})</span></span>
-                        ) : (
-                          <span className="text-slate-500">System</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        <Badge label={log.action} variant="cyan" size="sm" />
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-400">
-                        {log.entity_type ? `${log.entity_type} #${log.entity_id || ''}` : '—'}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-300 max-w-xs truncate" title={log.details}>
-                        {log.details || '—'}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
-                        {log.ip_address || '127.0.0.1'}
-                      </td>
-                    </tr>
-                  ))}
-                  {auditLogs.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="text-center py-6 text-slate-500">
-                        No audit events recorded yet.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          {/* Section: Activity Analytics & Top Platform Users (Phase 9) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Active Users Breakdown */}
+            <Card title="Active Operator Footprint" subtitle="Evidence-based activity metrics">
+              <div className="space-y-3 mt-2">
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-xs font-mono text-slate-300">Active Today</span>
+                  </div>
+                  <span className="text-base font-bold font-mono text-emerald-400">{activityAnalytics?.activity?.activeToday ?? 0}</span>
+                </div>
+
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                    <span className="text-xs font-mono text-slate-300">Active This Week</span>
+                  </div>
+                  <span className="text-base font-bold font-mono text-cyan-400">{activityAnalytics?.activity?.activeThisWeek ?? 0}</span>
+                </div>
+
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+                    <span className="text-xs font-mono text-slate-300">Active This Month</span>
+                  </div>
+                  <span className="text-base font-bold font-mono text-sky-400">{activityAnalytics?.activity?.activeThisMonth ?? 0}</span>
+                </div>
+
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                    <span className="text-xs font-mono text-slate-400">Never Scanned/Uploaded</span>
+                  </div>
+                  <span className="text-base font-bold font-mono text-slate-400">{activityAnalytics?.activity?.neverUsedAnalyzer ?? 0}</span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Top Users by Scans */}
+            <Card title="Top Operators by Scans" subtitle="Most active scan evaluators">
+              <div className="space-y-2 mt-2">
+                {(activityAnalytics?.topUsers?.byScans || []).map((u, i) => (
+                  <div key={u.id} className="p-2.5 bg-slate-900/40 border border-slate-800/80 rounded-lg flex items-center justify-between text-xs font-mono">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-slate-500 font-bold w-4">#{i + 1}</span>
+                      <div className="truncate">
+                        <p className="text-slate-200 font-semibold truncate">{u.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-cyan-400 font-bold">{u.totalScans}</span>
+                      <span className="text-[10px] text-slate-500 block">scans</span>
+                    </div>
+                  </div>
+                ))}
+                {(!activityAnalytics?.topUsers?.byScans || activityAnalytics.topUsers.byScans.length === 0) && (
+                  <p className="text-xs text-slate-500 font-mono py-4 text-center">No scans recorded yet.</p>
+                )}
+              </div>
+            </Card>
+
+            {/* Top Users by APK Uploads */}
+            <Card title="Top Operators by Uploads" subtitle="Highest volume APK contributors">
+              <div className="space-y-2 mt-2">
+                {(activityAnalytics?.topUsers?.byUploads || []).map((u, i) => (
+                  <div key={u.id} className="p-2.5 bg-slate-900/40 border border-slate-800/80 rounded-lg flex items-center justify-between text-xs font-mono">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-slate-500 font-bold w-4">#{i + 1}</span>
+                      <div className="truncate">
+                        <p className="text-slate-200 font-semibold truncate">{u.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-emerald-400 font-bold">{u.totalUploads}</span>
+                      <span className="text-[10px] text-slate-500 block">{u.totalMb} MB</span>
+                    </div>
+                  </div>
+                ))}
+                {(!activityAnalytics?.topUsers?.byUploads || activityAnalytics.topUsers.byUploads.length === 0) && (
+                  <p className="text-xs text-slate-500 font-mono py-4 text-center">No uploads recorded yet.</p>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Section: Platform Live Feeds (Registrations, Scans, Audits) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Latest Registrations */}
+            <Card
+              title="Recent Registrations"
+              subtitle="Latest operator accounts created"
+              actions={
+                <Link to="/admin/users" className="text-xs text-cyan-400 hover:text-cyan-300 font-mono flex items-center">
+                  View All <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
+              }
+            >
+              <div className="space-y-2.5 mt-2">
+                {(activityFeeds.latestRegistrations || []).map((u) => (
+                  <div key={u.id} className="p-2.5 bg-slate-900/40 border border-slate-800 rounded-lg text-xs font-mono flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-200 truncate">{u.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{u.email}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge label={u.role.toUpperCase()} variant={u.role === 'admin' ? 'danger' : 'info'} size="xs" />
+                      <span className="text-[10px] text-slate-500 block mt-1">{formatDate(u.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Latest Scans */}
+            <Card
+              title="Recent Scan Executions"
+              subtitle="Latest APK analyses across platform"
+              actions={
+                <Link to="/admin/scans" className="text-xs text-cyan-400 hover:text-cyan-300 font-mono flex items-center">
+                  View All <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
+              }
+            >
+              <div className="space-y-2.5 mt-2">
+                {(activityFeeds.latestScans || []).map((s) => (
+                  <div key={s.id} className="p-2.5 bg-slate-900/40 border border-slate-800 rounded-lg text-xs font-mono flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-200 truncate">{s.original_filename}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{s.user_name || s.user_email}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <Badge
+                        label={s.status.toUpperCase()}
+                        variant={s.status === 'completed' ? 'success' : s.status === 'failed' ? 'danger' : 'warning'}
+                        size="xs"
+                      />
+                      <span className="text-[10px] text-slate-500 block mt-1">
+                        Score: {s.security_score !== null ? `${s.security_score}/100` : '—'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Latest Audit Events */}
+            <Card
+              title="Recent Audit Events"
+              subtitle="Latest administrative & system operations"
+              actions={
+                <Link to="/admin/audit-logs" className="text-xs text-cyan-400 hover:text-cyan-300 font-mono flex items-center">
+                  View All <ArrowRight className="h-3 w-3 ml-1" />
+                </Link>
+              }
+            >
+              <div className="space-y-2.5 mt-2">
+                {(activityFeeds.latestAuditEvents || []).map((a) => (
+                  <div key={a.id} className="p-2.5 bg-slate-900/40 border border-slate-800 rounded-lg text-xs font-mono flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Badge label={a.action} variant="cyan" size="xs" />
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1 truncate">{a.details || `${a.entity_type || 'System'} #${a.entity_id || ''}`}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-[10px] text-slate-500 block">{formatDate(a.created_at)}</span>
+                      <span className="text-[9px] text-slate-600 block">{a.ip_address || '127.0.0.1'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         </>
       )}
     </div>

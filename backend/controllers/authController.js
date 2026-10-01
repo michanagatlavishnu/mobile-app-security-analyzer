@@ -144,7 +144,8 @@ async function login(req, res, next) {
       { expiresIn: env.jwtExpiresIn }
     );
 
-    // 4. Log audit event
+    // 4. Update last_login timestamp & log audit event
+    await User.updateLastLogin(user.id);
     await AuditLog.log({
       userId: user.id,
       action: 'USER_LOGIN',

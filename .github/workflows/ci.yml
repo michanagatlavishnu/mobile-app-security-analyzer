@@ -141,3 +141,4 @@ jobs:
           node server.js &
           sleep 5
           npm run test:e2e
+          npm run test:admin

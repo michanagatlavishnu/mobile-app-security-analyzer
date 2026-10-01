@@ -140,7 +140,13 @@ export function ProtectedRoute({ children, requireAdmin = false }) {
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return (
+      <Navigate
+        to="/dashboard"
+        state={{ accessDenied: 'Access denied: Administrator privileges required to access the Admin Portal.' }}
+        replace
+      />
+    );
   }
 
   return children;
